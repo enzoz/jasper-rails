@@ -74,10 +74,35 @@ module JasperRails
 
   module Jasper
     module Rails
+      
+      def self.need_be_compiled?(jrxml_file, jasper_file)
+        !File.exist?(jasper_file) || (File.exist?(jrxml_file) && File.mtime(jrxml_file) > File.mtime(jasper_file))
+      end
+      
+      def self.compile_subreports(reports_path, master_report)
+        p reports_path, master_report
+        reports_to_compile = Dir.entries(reports_path).select do |entry| 
+          File.extname(entry) == ".jrxml" && !entry.include?(master_report) 
+        end
+
+        reports_to_compile.each do |subreport_jrxml_file|
+          subreport_jrxml_file = "#{reports_path}/#{subreport_jrxml_file}"
+          subreport_jasper_file = "#{reports_path}/#{File.basename(subreport_jrxml_file, '.jrxml')}.jasper"
+          
+          puts subreport_jrxml_file, subreport_jasper_file
+              
+          if need_be_compiled?(subreport_jrxml_file, subreport_jasper_file)
+            JasperCompileManager.compileReportToFile(subreport_jrxml_file, subreport_jasper_file)
+          end
+        end
+      end
+      
       def self.render_pdf(jasper_file, datasource, parameters, options)
         options ||= {}
         parameters ||= {}
         jrxml_file  = jasper_file.sub(/\.jasper$/, ".jrxml")
+        
+        puts options
 
         begin
           # Converting default report params to java HashMap
@@ -94,8 +119,12 @@ module JasperRails
           end
 
           # Compile it, if needed
-          if !File.exist?(jasper_file) || (File.exist?(jrxml_file) && File.mtime(jrxml_file) > File.mtime(jasper_file))
+          if need_be_compiled?(jrxml_file, jasper_file)
             JasperCompileManager.compileReportToFile(jrxml_file, jasper_file)
+          end
+          # Compile subreports
+          if options.include?(:compile_subreports) && options[:compile_subreports]
+            compile_subreports(File.dirname(jrxml_file), File.basename(jrxml_file, ".jrxml"))
           end
 
           # Fill the report
