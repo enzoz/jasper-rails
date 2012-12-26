@@ -80,7 +80,6 @@ module JasperRails
       end
       
       def self.compile_subreports(reports_path, master_report)
-        p reports_path, master_report
         reports_to_compile = Dir.entries(reports_path).select do |entry| 
           File.extname(entry) == ".jrxml" && !entry.include?(master_report) 
         end
